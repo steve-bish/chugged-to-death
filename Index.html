@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <title>Metal Shredder: Riff Lord</title>
+    <style>
+        :root {
+            --metal-black: #0a0a0a;
+            --blood-red: #8b0000;
+            --chrome: #c0c0c0;
+            --electric-purple: #6a0dad;
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; background-color: var(--metal-black);
+            font-family: 'Courier New', Courier, monospace;
+            touch-action: none;
+        }
+
+        #game-container {
+            position: relative; width: 100vw; height: 100vh;
+        }
+
+        canvas {
+            display: block; background: linear-gradient(to bottom, #1a1a1a, #000);
+        }
+
+        /* Controls Overlay */
+        .controls {
+            position: absolute; bottom: 20px; width: 100%;
+            display: flex; justify-content: space-between;
+            pointer-events: none; padding: 0 40px; box-sizing: border-box;
+        }
+
+        .btn-group { display: flex; gap: 20px; pointer-events: auto; }
+
+        .btn {
+            width: 70px; height: 70px;
+            background: rgba(139, 0, 0, 0.4);
+            border: 3px solid var(--chrome);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: bold; font-size: 24px;
+            user-select: none; -webkit-user-select: none;
+        }
+
+        .btn:active { background: var(--blood-red); transform: scale(0.9); }
+
+        #orientation-warning {
+            display: none; position: fixed; inset: 0;
+            background: var(--metal-black); color: white;
+            z-index: 100; text-align: center; padding-top: 20%;
+        }
+
+        @media (orientation: portrait) {
+            #orientation-warning { display: block; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="orientation-warning">PLEASE ROTATE TO LANDSCAPE TO SHRED</div>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    
+    <div class="controls">
+        <div class="btn-group">
+            <div class="btn" id="btn-left">←</div>
+            <div class="btn" id="btn-right">→</div>
+        </div>
+        <div class="btn-group">
+            <div class="btn" id="btn-jump">J</div>
+            <div class="btn" id="btn-shoot">♫</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Game Constants
+    const GRAVITY = 0.6;
+    const SHRED_SPEED = 8;
+    
+    // State
+    let width, height;
+    let player = {
+        x: 100, y: 0, w: 40, h: 60,
+        vx: 0, vy: 0,
+        grounded: false,
+        direction: 1 // 1 = right, -1 = left
+    };
+    let notes = [];
+    let enemies = [];
+    let particles = [];
+    let keys = { left: false, right: false, jump: false, shoot: false };
+
+    function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+        player.y = height - 100;
+    }
+
+    // Touch Handling
+    const setupBtn = (id, key) => {
+        const el = document.getElementById(id);
+        el.addEventListener('touchstart', (e) => { e.preventDefault(); keys[key] = true; });
+        el.addEventListener('touchend', (e) => { e.preventDefault(); keys[key] = false; });
+    };
+
+    setupBtn('btn-left', 'left');
+    setupBtn('btn-right', 'right');
+    setupBtn('btn-jump', 'jump');
+    setupBtn('btn-shoot', 'shoot');
+
+    function spawnEnemy() {
+        if (Math.random() < 0.02) {
+            enemies.push({
+                x: width + 50, y: height - 80,
+                w: 30, h: 40, speed: 2 + Math.random() * 3
+            });
+        }
+    }
+
+    function shootNote() {
+        notes.push({
+            x: player.x + (player.direction === 1 ? player.w : 0),
+            y: player.y + 20,
+            vx: player.direction * SHRED_SPEED,
+            size: 20,
+            symbol: Math.random() > 0.5 ? '♪' : '♫'
+        });
+    }
+
+    let lastShot = 0;
+    function update() {
+        // Movement
+        if (keys.left) { player.vx = -5; player.direction = -1; }
+        else if (keys.right) { player.vx = 5; player.direction = 1; }
+        else { player.vx *= 0.8; }
+
+        if (keys.jump && player.grounded) {
+            player.vy = -12;
+            player.grounded = false;
+        }
+
+        if (keys.shoot && Date.now() - lastShot > 200) {
+            shootNote();
+            lastShot = Date.now();
+        }
+
+        player.x += player.vx;
+        player.y += player.vy;
+        player.vy += GRAVITY;
+
+        // Floor collision
+        if (player.y > height - 100) {
+            player.y = height - 100;
+            player.vy = 0;
+            player.grounded = true;
+        }
+
+        // Constraints
+        player.x = Math.max(0, Math.min(width - player.w, player.x));
+
+        // Update Projectiles
+        notes.forEach((n, i) => {
+            n.x += n.vx;
+            if (n.x < 0 || n.x > width) notes.splice(i, 1);
+        });
+
+        // Update Enemies
+        enemies.forEach((en, i) => {
+            en.x -= en.speed;
+            // Collision Note-Enemy
+            notes.forEach((n, ni) => {
+                if (n.x < en.x + en.w && n.x + n.size > en.x && n.y < en.y + en.h && n.y + n.size > en.y) {
+                    enemies.splice(i, 1);
+                    notes.splice(ni, 1);
+                    createExplosion(en.x, en.y);
+                }
+            });
+            if (en.x < -50) enemies.splice(i, 1);
+        });
+
+        spawnEnemy();
+    }
+
+    function createExplosion(x, y) {
+        for(let i=0; i<8; i++) {
+            particles.push({x, y, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10, life: 20});
+        }
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, width, height);
+
+        // Draw Player (Guitarist Silhouette)
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(player.x, player.y, player.w, player.h);
+        // "Guitar"
+        ctx.strokeStyle = "#8b0000";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(player.x + (player.direction === 1 ? 10 : 30), player.y + 40);
+        ctx.lineTo(player.x + (player.direction === 1 ? 50 : -10), player.y + 20);
+        ctx.stroke();
+
+        // Draw Notes
+        ctx.fillStyle = "#00f0ff"; // Electric blue notes
+        ctx.font = "bold 24px Arial";
+        notes.forEach(n => ctx.fillText(n.symbol, n.x, n.y));
+
+        // Draw Enemies (Generic "Pop" zombies)
+        ctx.fillStyle = "#444";
+        enemies.forEach(en => ctx.fillRect(en.x, en.y, en.w, en.h));
+
+        // Particles
+        ctx.fillStyle = "#ff0000";
+        particles.forEach((p, i) => {
+            ctx.fillRect(p.x, p.y, 4, 4);
+            p.x += p.vx; p.y += p.vy; p.life--;
+            if (p.life <= 0) particles.splice(i, 1);
+        });
+    }
+
+    function loop() {
+        update();
+        draw();
+        requestAnimationFrame(loop);
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+    loop();
+
+    // Service Worker Registration for PWA
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js');
+    }
+</script>
+</body>
+</html>
