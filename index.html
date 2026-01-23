@@ -154,7 +154,7 @@
     function shootNote() {
         notes.push({
             x: player.x + (player.direction === 1 ? player.w : 0),
-            y: player.y + 30,
+            y: player.y + 20,
             vx: player.direction * SHRED_SPEED,
             size: 20,
             symbol: Math.random() > 0.5 ? '♪' : '♫'
