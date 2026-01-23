@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
+<meta charset="UTF-8">
 <meta name="viewport"
   content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -10,21 +10,14 @@
 <title>CHUGGED TO DEATH</title>
 
 <style>
-:root {
-  --metal-black: #0a0a0a;
-  --blood-red: #8b0000;
-  --chrome: #c0c0c0;
-}
-
 html, body {
   margin: 0;
   padding: 0;
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: var(--metal-black);
-  font-family: Courier New, monospace;
-  touch-action: none;
+  background: #0a0a0a;
+  font-family: monospace;
 }
 
 #game-container {
@@ -40,7 +33,7 @@ canvas {
 
 .controls {
   position: absolute;
-  bottom: 30px;
+  bottom: calc(30px + env(safe-area-inset-bottom));
   width: 100%;
   display: flex;
   justify-content: space-between;
@@ -70,31 +63,13 @@ canvas {
 }
 
 .btn:active {
-  background: var(--blood-red);
+  background: #8b0000;
   transform: scale(0.9);
-}
-
-#orientation-warning {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: var(--metal-black);
-  color: white;
-  text-align: center;
-  padding-top: 20%;
-  z-index: 100;
-}
-
-@media (orientation: portrait) {
-  #orientation-warning { display: block; }
 }
 </style>
 </head>
 
 <body>
-
-<div id="orientation-warning">🤘 ROTATE TO LANDSCAPE TO SHRED 🤘</div>
-
 <div id="game-container">
   <canvas id="gameCanvas"></canvas>
 
@@ -111,15 +86,10 @@ canvas {
 </div>
 
 <script>
-/* =========================
-   CANVAS SETUP
-========================= */
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-/* =========================
-   SPRITE DEFINITIONS
-========================= */
+/* ---------- SPRITES ---------- */
 const SPRITES = {
   idle: {
     fps: 4,
@@ -131,9 +101,6 @@ const SPRITES = {
   }
 };
 
-/* =========================
-   SPRITE MANAGER
-========================= */
 class SpriteManager {
   constructor(defs) {
     this.defs = defs;
@@ -146,7 +113,6 @@ class SpriteManager {
       def.frames.forEach(src => {
         const img = new Image();
         img.onload = () => img._ready = true;
-        img.onerror = () => console.warn("Sprite failed:", src);
         img.src = src;
         this.images[state].push(img);
       });
@@ -156,36 +122,26 @@ class SpriteManager {
   getFrame(state, time) {
     const def = this.defs[state];
     const frames = this.images[state];
-    if (!def || !frames || frames.length === 0) return null;
+    if (!def || !frames) return null;
 
-    const index =
+    const i =
       Math.floor(time / (1000 / def.fps)) % frames.length;
 
-    const img = frames[index];
-    return img && img._ready ? img : null;
+    return frames[i]?._ready ? frames[i] : null;
   }
 }
 
 const spriteManager = new SpriteManager(SPRITES);
 spriteManager.load();
 
-/* =========================
-   GAME CONSTANTS
-========================= */
+/* ---------- GAME ---------- */
 const GRAVITY = 0.6;
 const SHRED_SPEED = 10;
 let width, height, floorY;
 
-/* =========================
-   PLAYER STATE
-========================= */
 const player = {
-  x: 100,
-  y: 0,
-  w: 60,
-  h: 80,
-  vx: 0,
-  vy: 0,
+  x: 100, y: 0, w: 60, h: 80,
+  vx: 0, vy: 0,
   grounded: false,
   direction: 1,
   state: "idle"
@@ -196,22 +152,16 @@ const notes = [];
 const enemies = [];
 let lastShot = 0;
 
-/* =========================
-   RESIZE
-========================= */
 function resize() {
-  width = window.innerWidth;
-  height = window.innerHeight;
+  width = innerWidth;
+  height = innerHeight;
   canvas.width = width;
   canvas.height = height;
   floorY = height - 160;
   player.y = floorY - player.h;
 }
 
-/* =========================
-   INPUT
-========================= */
-function bindBtn(id, key) {
+function bind(id, key) {
   const el = document.getElementById(id);
   el.addEventListener("touchstart", e => {
     e.preventDefault(); keys[key] = true;
@@ -221,14 +171,11 @@ function bindBtn(id, key) {
   });
 }
 
-bindBtn("btn-left", "left");
-bindBtn("btn-right", "right");
-bindBtn("btn-jump", "jump");
-bindBtn("btn-shoot", "shoot");
+bind("btn-left","left");
+bind("btn-right","right");
+bind("btn-jump","jump");
+bind("btn-shoot","shoot");
 
-/* =========================
-   UPDATE
-========================= */
 function update() {
   if (keys.shoot) player.state = "shoot";
   else if (!player.grounded) player.state = "jump";
@@ -264,59 +211,62 @@ function update() {
     player.grounded = true;
   }
 
-  notes.forEach((n, i) => {
-    n.x += n.vx;
-    if (n.x < 0 || n.x > width) notes.splice(i, 1);
+  // enemies
+  if (Math.random() < 0.02) {
+    enemies.push({ x: width+50, y: floorY-50, w:40, h:50, speed:2 });
+  }
+
+  enemies.forEach((e,i) => {
+    e.x -= e.speed;
+    notes.forEach((n,ni) => {
+      if (n.x < e.x+e.w && n.x+10 > e.x && n.y < e.y+e.h && n.y+10 > e.y) {
+        enemies.splice(i,1);
+        notes.splice(ni,1);
+      }
+    });
   });
 }
 
-/* =========================
-   DRAW
-========================= */
 function draw() {
   ctx.clearRect(0,0,width,height);
 
-  ctx.fillStyle = "#1a1a1a";
-  ctx.fillRect(0, floorY, width, height - floorY);
+  ctx.fillStyle="#1a1a1a";
+  ctx.fillRect(0,floorY,width,height-floorY);
 
   ctx.save();
-  ctx.translate(player.x + player.w/2, player.y + player.h/2);
-  ctx.scale(player.direction, 1);
+  ctx.translate(player.x+player.w/2, player.y+player.h/2);
+  ctx.scale(player.direction,1);
 
-  const sprite = spriteManager.getFrame(
-    player.state,
-    performance.now()
-  );
+  const sprite =
+    spriteManager.getFrame(player.state, performance.now()) ||
+    spriteManager.getFrame("idle", performance.now());
 
   if (sprite) {
     ctx.drawImage(sprite, -player.w/2, -player.h/2, player.w, player.h);
   } else {
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(-player.w/2, -player.h/2, player.w, player.h);
-    ctx.fillStyle = "#8b0000";
-    ctx.fillRect(0, 0, 30, 5);
+    ctx.fillStyle="#fff";
+    ctx.fillRect(-player.w/2,-player.h/2,player.w,player.h);
   }
 
   ctx.restore();
 
-  ctx.fillStyle = "#00f0ff";
-  ctx.font = "24px Arial";
-  notes.forEach(n => ctx.fillText(n.symbol, n.x, n.y));
+  ctx.fillStyle="#444";
+  enemies.forEach(e => ctx.fillRect(e.x,e.y,e.w,e.h));
+
+  ctx.fillStyle="#0ff";
+  ctx.font="24px Arial";
+  notes.forEach(n => ctx.fillText(n.symbol,n.x,n.y));
 }
 
-/* =========================
-   LOOP
-========================= */
-function loop() {
+function loop(){
   update();
   draw();
   requestAnimationFrame(loop);
 }
 
-window.addEventListener("resize", resize);
+addEventListener("resize",resize);
 resize();
 loop();
 </script>
-
 </body>
 </html>
