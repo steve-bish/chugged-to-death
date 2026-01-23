@@ -1,276 +1,322 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="manifest" href="manifest.json">
-    <title>CHUGGED TO DEATH</title>
-    <style>
-        :root {
-            --metal-black: #0a0a0a;
-            --blood-red: #8b0000;
-            --chrome: #c0c0c0;
-        }
+<meta charset="UTF-8" />
+<meta name="viewport"
+  content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<title>CHUGGED TO DEATH</title>
 
-        body, html {
-            margin: 0; padding: 0; width: 100%; height: 100%;
-            overflow: hidden; background-color: var(--metal-black);
-            font-family: 'Courier New', Courier, monospace;
-            touch-action: none;
-        }
+<style>
+:root {
+  --metal-black: #0a0a0a;
+  --blood-red: #8b0000;
+  --chrome: #c0c0c0;
+}
 
-        #game-container { position: relative; width: 100vw; height: 100vh; }
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--metal-black);
+  font-family: Courier New, monospace;
+  touch-action: none;
+}
 
-        canvas { display: block; background: #111; }
+#game-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
 
-        /* Controls Overlay - Positioned at the bottom */
-        .controls {
-            position: absolute; bottom: 30px; width: 100%;
-            display: flex; justify-content: space-between;
-            pointer-events: none; padding: 0 40px; box-sizing: border-box;
-            z-index: 10;
-        }
+canvas {
+  display: block;
+  background: #111;
+}
 
-        .btn-group { display: flex; gap: 20px; pointer-events: auto; }
+.controls {
+  position: absolute;
+  bottom: 30px;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 40px;
+  pointer-events: none;
+  z-index: 10;
+}
 
-        .btn {
-            width: 80px; height: 80px;
-            background: rgba(139, 0, 0, 0.3); /* Semi-transparent */
-            border: 3px solid rgba(192, 192, 192, 0.5);
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            color: white; font-weight: bold; font-size: 28px;
-            user-select: none; -webkit-user-select: none;
-            backdrop-filter: blur(5px);
-        }
+.btn-group {
+  display: flex;
+  gap: 20px;
+  pointer-events: auto;
+}
 
-        .btn:active { background: var(--blood-red); transform: scale(0.9); }
+.btn {
+  width: 80px;
+  height: 80px;
+  background: rgba(139,0,0,0.3);
+  border: 3px solid rgba(192,192,192,0.5);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: white;
+  user-select: none;
+}
 
-        #orientation-warning {
-            display: none; position: fixed; inset: 0;
-            background: var(--metal-black); color: white;
-            z-index: 100; text-align: center; padding-top: 20%;
-        }
+.btn:active {
+  background: var(--blood-red);
+  transform: scale(0.9);
+}
 
-        @media (orientation: portrait) { #orientation-warning { display: block; } }
-    </style>
+#orientation-warning {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: var(--metal-black);
+  color: white;
+  text-align: center;
+  padding-top: 20%;
+  z-index: 100;
+}
+
+@media (orientation: portrait) {
+  #orientation-warning { display: block; }
+}
+</style>
 </head>
+
 <body>
 
 <div id="orientation-warning">🤘 ROTATE TO LANDSCAPE TO SHRED 🤘</div>
 
 <div id="game-container">
-    <canvas id="gameCanvas"></canvas>
-    <div class="controls">
-        <div class="btn-group">
-            <div id="btn-left" class="btn">←</div>
-            <div id="btn-right" class="btn">→</div>
-        </div>
-        <div class="btn-group">
-            <div id="btn-jump" class="btn">J</div>
-            <div id="btn-shoot" class="btn">🤘</div>
-        </div>
+  <canvas id="gameCanvas"></canvas>
+
+  <div class="controls">
+    <div class="btn-group">
+      <div id="btn-left" class="btn">←</div>
+      <div id="btn-right" class="btn">→</div>
     </div>
+    <div class="btn-group">
+      <div id="btn-jump" class="btn">J</div>
+      <div id="btn-shoot" class="btn">🤘</div>
+    </div>
+  </div>
 </div>
 
 <script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
+/* =========================
+   CANVAS SETUP
+========================= */
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
 
-    // --- SPRITE CONFIGURATION ---
-    // Plug your filenames here when ready
-    const ASSETS = {
-        //walk: ["walk1.png", "walk2.png"], 
-        shoot: ["IMG_5164.jpeg", "IMG_5165.jpeg"],
-        idle: ["IMG_5163.jpeg"]
-    };
+/* =========================
+   SPRITE DEFINITIONS
+========================= */
+const SPRITES = {
+  idle: {
+    fps: 4,
+    frames: ["IMG_5163.jpeg"]
+  },
+  shoot: {
+    fps: 8,
+    frames: ["IMG_5164.jpeg", "IMG_5165.jpeg"]
+  }
+};
 
-    const sprites = { walk: [], shoot: [], idle: [], loaded: false };
-    
-    function loadSprites() {
-        let loadedCount = 0;
-        let total = ASSETS.walk.length + ASSETS.shoot.length + ASSETS.idle.length;
-        
-        const onLoad = () => { loadedCount++; if(loadedCount === total) sprites.loaded = true; };
+/* =========================
+   SPRITE MANAGER
+========================= */
+class SpriteManager {
+  constructor(defs) {
+    this.defs = defs;
+    this.images = {};
+  }
 
-        ['walk', 'shoot', 'idle'].forEach(type => {
-            ASSETS[type].forEach((url, i) => {
-                const img = new Image();
-                img.src = url;
-                img.onload = onLoad;
-                img.onerror = onLoad; // Still proceed if file missing
-                sprites[type][i] = img;
-            });
-        });
-    }
+  load() {
+    Object.entries(this.defs).forEach(([state, def]) => {
+      this.images[state] = [];
+      def.frames.forEach(src => {
+        const img = new Image();
+        img.onload = () => img._ready = true;
+        img.onerror = () => console.warn("Sprite failed:", src);
+        img.src = src;
+        this.images[state].push(img);
+      });
+    });
+  }
 
-    // --- GAME CONSTANTS ---
-    const GRAVITY = 0.6;
-    const SHRED_SPEED = 10;
-    let width, height, floorY;
+  getFrame(state, time) {
+    const def = this.defs[state];
+    const frames = this.images[state];
+    if (!def || !frames || frames.length === 0) return null;
 
-    // --- PLAYER STATE ---
-    let player = {
-        x: 100, y: 0, w: 60, h: 80,
-        vx: 0, vy: 0,
-        grounded: false,
-        direction: 1, // 1 for Right, -1 for Left
-        animFrame: 0,
-        animTimer: 0,
-        state: 'idle' // idle, walk, shoot, jump
-    };
+    const index =
+      Math.floor(time / (1000 / def.fps)) % frames.length;
 
-    let notes = [];
-    let enemies = [];
-    let keys = { left: false, right: false, jump: false, shoot: false };
-    let lastShot = 0;
-
-    function resize() {
-        width = window.innerWidth;
-        height = window.innerHeight;
-        canvas.width = width;
-        canvas.height = height;
-        // SAFE ZONE: Set floor higher so player is above thumbs
-        floorY = height - 160; 
-        player.y = floorY - player.h;
-    }
-
-    // --- INPUT HANDLING ---
-    const setupBtn = (id, key) => {
-        const el = document.getElementById(id);
-        const setKey = (val) => (e) => { e.preventDefault(); keys[key] = val; };
-        el.addEventListener('touchstart', setKey(true));
-        el.addEventListener('touchend', setKey(false));
-    };
-
-    setupBtn('btn-left', 'left');
-    setupBtn('btn-right', 'right');
-    setupBtn('btn-jump', 'jump');
-    setupBtn('btn-shoot', 'shoot');
-
-    function update() {
-        // State Management
-        if (keys.shoot) player.state = 'shoot';
-        else if (!player.grounded) player.state = 'jump';
-        else if (keys.left || keys.right) player.state = 'walk';
-        else player.state = 'idle';
-
-        // Movement
-        if (keys.left) { player.vx = -5; player.direction = -1; }
-        else if (keys.right) { player.vx = 5; player.direction = 1; }
-        else { player.vx *= 0.8; }
-
-        if (keys.jump && player.grounded) {
-            player.vy = -14;
-            player.grounded = false;
-        }
-
-        if (keys.shoot && Date.now() - lastShot > 200) {
-            notes.push({
-                x: player.x + (player.direction === 1 ? player.w : 0),
-                y: player.y + 35,
-                vx: player.direction * SHRED_SPEED,
-                symbol: '♫'
-            });
-            lastShot = Date.now();
-        }
-
-        player.x += player.vx;
-        player.y += player.vy;
-        player.vy += GRAVITY;
-
-        // Floor collision
-        if (player.y > floorY - player.h) {
-            player.y = floorY - player.h;
-            player.vy = 0;
-            player.grounded = true;
-        }
-
-        player.x = Math.max(0, Math.min(width - player.w, player.x));
-
-        // Animation Ticker
-        player.animTimer++;
-if (player.animTimer > 8) {
-  const frames =
-    sprites[player.state]?.length || 1;
-  player.animFrame =
-    (player.animFrame + 1) % frames;
-  player.animTimer = 0;
+    const img = frames[index];
+    return img && img._ready ? img : null;
+  }
 }
 
-        // Enemies & Projectiles
-        notes.forEach((n, i) => {
-            n.x += n.vx;
-            if (n.x < 0 || n.x > width) notes.splice(i, 1);
-        });
+const spriteManager = new SpriteManager(SPRITES);
+spriteManager.load();
 
-        if (Math.random() < 0.02) {
-            enemies.push({ x: width + 50, y: floorY - 50, w: 40, h: 50, speed: 2 + Math.random() * 2 });
-        }
+/* =========================
+   GAME CONSTANTS
+========================= */
+const GRAVITY = 0.6;
+const SHRED_SPEED = 10;
+let width, height, floorY;
 
-        enemies.forEach((en, i) => {
-            en.x -= en.speed;
-            notes.forEach((n, ni) => {
-                if (n.x < en.x + en.w && n.x + 20 > en.x && n.y < en.y + en.h && n.y + 20 > en.y) {
-                    enemies.splice(i, 1);
-                    notes.splice(ni, 1);
-                }
-            });
-            if (en.x < -100) enemies.splice(i, 1);
-        });
-    }
+/* =========================
+   PLAYER STATE
+========================= */
+const player = {
+  x: 100,
+  y: 0,
+  w: 60,
+  h: 80,
+  vx: 0,
+  vy: 0,
+  grounded: false,
+  direction: 1,
+  state: "idle"
+};
 
-    function draw() {
-        ctx.clearRect(0, 0, width, height);
+const keys = { left:false, right:false, jump:false, shoot:false };
+const notes = [];
+const enemies = [];
+let lastShot = 0;
 
-        // Draw Scenery (Stage/Floor)
-        ctx.fillStyle = '#1a1a1a';
-        ctx.fillRect(0, floorY, width, height - floorY);
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(0, floorY, width, 2);
+/* =========================
+   RESIZE
+========================= */
+function resize() {
+  width = window.innerWidth;
+  height = window.innerHeight;
+  canvas.width = width;
+  canvas.height = height;
+  floorY = height - 160;
+  player.y = floorY - player.h;
+}
 
-        // Draw Player
-        ctx.save();
-        // Move to player center for flipping
-        ctx.translate(player.x + player.w / 2, player.y + player.h / 2);
-        ctx.scale(player.direction, 1);
+/* =========================
+   INPUT
+========================= */
+function bindBtn(id, key) {
+  const el = document.getElementById(id);
+  el.addEventListener("touchstart", e => {
+    e.preventDefault(); keys[key] = true;
+  });
+  el.addEventListener("touchend", e => {
+    e.preventDefault(); keys[key] = false;
+  });
+}
 
-        let currentSprite = sprites[player.state]?.[player.animFrame];
+bindBtn("btn-left", "left");
+bindBtn("btn-right", "right");
+bindBtn("btn-jump", "jump");
+bindBtn("btn-shoot", "shoot");
 
-        // Draw sprite if loaded, else fallback to silhouette
-        if (sprites.loaded && currentSprite && currentSprite.complete && currentSprite.naturalWidth !== 0) {
-            ctx.drawImage(currentSprite, -player.w / 2, -player.h / 2, player.w, player.h);
-        } else {
-            ctx.fillStyle = "#fff";
-            ctx.fillRect(-player.w / 2, -player.h / 2, player.w, player.h);
-            ctx.fillStyle = "#8b0000"; // Red "Guitar" placeholder
-            ctx.fillRect(0, 0, 30, 5);
-        }
-        ctx.restore();
+/* =========================
+   UPDATE
+========================= */
+function update() {
+  if (keys.shoot) player.state = "shoot";
+  else if (!player.grounded) player.state = "jump";
+  else if (keys.left || keys.right) player.state = "walk";
+  else player.state = "idle";
 
-        // Draw Enemies
-        ctx.fillStyle = "#444";
-        enemies.forEach(en => ctx.fillRect(en.x, en.y, en.w, en.h));
+  if (keys.left) { player.vx = -5; player.direction = -1; }
+  else if (keys.right) { player.vx = 5; player.direction = 1; }
+  else player.vx *= 0.8;
 
-        // Draw Notes
-        ctx.fillStyle = "#00f0ff";
-        ctx.font = "24px Arial";
-        notes.forEach(n => ctx.fillText(n.symbol, n.x, n.y));
-    }
+  if (keys.jump && player.grounded) {
+    player.vy = -14;
+    player.grounded = false;
+  }
 
-    function loop() {
-        update();
-        draw();
-        requestAnimationFrame(loop);
-    }
+  if (keys.shoot && Date.now() - lastShot > 200) {
+    notes.push({
+      x: player.x + (player.direction === 1 ? player.w : 0),
+      y: player.y + 35,
+      vx: player.direction * SHRED_SPEED,
+      symbol: "♫"
+    });
+    lastShot = Date.now();
+  }
 
-    window.addEventListener('resize', resize);
-    loadSprites();
-    resize();
-    loop();
+  player.x += player.vx;
+  player.y += player.vy;
+  player.vy += GRAVITY;
+
+  if (player.y > floorY - player.h) {
+    player.y = floorY - player.h;
+    player.vy = 0;
+    player.grounded = true;
+  }
+
+  notes.forEach((n, i) => {
+    n.x += n.vx;
+    if (n.x < 0 || n.x > width) notes.splice(i, 1);
+  });
+}
+
+/* =========================
+   DRAW
+========================= */
+function draw() {
+  ctx.clearRect(0,0,width,height);
+
+  ctx.fillStyle = "#1a1a1a";
+  ctx.fillRect(0, floorY, width, height - floorY);
+
+  ctx.save();
+  ctx.translate(player.x + player.w/2, player.y + player.h/2);
+  ctx.scale(player.direction, 1);
+
+  const sprite = spriteManager.getFrame(
+    player.state,
+    performance.now()
+  );
+
+  if (sprite) {
+    ctx.drawImage(sprite, -player.w/2, -player.h/2, player.w, player.h);
+  } else {
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(-player.w/2, -player.h/2, player.w, player.h);
+    ctx.fillStyle = "#8b0000";
+    ctx.fillRect(0, 0, 30, 5);
+  }
+
+  ctx.restore();
+
+  ctx.fillStyle = "#00f0ff";
+  ctx.font = "24px Arial";
+  notes.forEach(n => ctx.fillText(n.symbol, n.x, n.y));
+}
+
+/* =========================
+   LOOP
+========================= */
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+window.addEventListener("resize", resize);
+resize();
+loop();
 </script>
+
 </body>
 </html>
