@@ -96,9 +96,9 @@
 
     // Sprite Loading
     const sprites = { idle: new Image(), shoot1: new Image(), shoot2: new Image() };
-    sprites.idle.src = 'IMG_5163.jpeg';
-    sprites.shoot1.src = 'IMG_5164.jpeg';
-    sprites.shoot2.src = 'IMG_5165.jpeg';
+    sprites.idle.src = 'IMG_5160.png';
+    sprites.shoot1.src = 'IMG_5161.png';
+    sprites.shoot2.src = 'IMG_5162.png';
 
     // Game Config
     const GRAVITY = 0.6;
@@ -154,7 +154,7 @@
     function shootNote() {
         notes.push({
             x: player.x + (player.direction === 1 ? player.w : 0),
-            y: player.y + 30,
+            y: player.y + 50,
             vx: player.direction * SHRED_SPEED,
             size: 20,
             symbol: Math.random() > 0.5 ? '♪' : '♫'
