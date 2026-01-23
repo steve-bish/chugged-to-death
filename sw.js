@@ -1,7 +1,10 @@
 const CACHE_NAME = 'chugged2death-v1';
 const ASSETS = [
   'index.html',
-  'manifest.json'
+  'manifest.json',
+  'IMG_5163.jpeg',
+  'IMG_5164.jpeg',
+  'IMG_5165.jpeg'
 ];
 
 self.addEventListener('install', (e) => {
