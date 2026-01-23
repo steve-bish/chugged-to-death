@@ -82,7 +82,7 @@
     // --- SPRITE CONFIGURATION ---
     // Plug your filenames here when ready
     const ASSETS = {
-        walk: ["walk1.png", "walk2.png"], 
+        //walk: ["walk1.png", "walk2.png"], 
         shoot: ["IMG_5164.jpeg", "IMG_5165.jpeg"],
         idle: ["IMG_5163.jpeg"]
     };
@@ -192,10 +192,13 @@
 
         // Animation Ticker
         player.animTimer++;
-        if (player.animTimer > 8) {
-            player.animFrame = (player.animFrame + 1) % 2;
-            player.animTimer = 0;
-        }
+if (player.animTimer > 8) {
+  const frames =
+    sprites[player.state]?.length || 1;
+  player.animFrame =
+    (player.animFrame + 1) % frames;
+  player.animTimer = 0;
+}
 
         // Enemies & Projectiles
         notes.forEach((n, i) => {
@@ -235,10 +238,7 @@
         ctx.translate(player.x + player.w / 2, player.y + player.h / 2);
         ctx.scale(player.direction, 1);
 
-        let currentSprite;
-        if (player.state === 'walk') currentSprite = sprites.walk[player.animFrame];
-        else if (player.state === 'shoot') currentSprite = sprites.shoot[player.animFrame];
-        else currentSprite = sprites.idle[0];
+        let currentSprite = sprites[player.state]?.[player.animFrame];
 
         // Draw sprite if loaded, else fallback to silhouette
         if (sprites.loaded && currentSprite && currentSprite.complete && currentSprite.naturalWidth !== 0) {
