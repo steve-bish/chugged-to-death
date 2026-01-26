@@ -24,19 +24,46 @@
             touch-action: none;
         }
 
+        /* Title Screen Styles */
+        #title-screen {
+            position: fixed; inset: 0;
+            background: var(--metal-black);
+            z-index: 1000;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            color: var(--blood-red);
+        }
+
+        #title-img {
+            width: 80%; max-width: 500px;
+            height: auto; display: block;
+        }
+
+        #start-prompt {
+            margin-top: 20px; font-size: 20px; 
+            letter-spacing: 2px; cursor: pointer;
+        }
+
+        #orientation-warning {
+            display: none; position: absolute; bottom: 10%;
+            width: 100%; text-align: center;
+            font-weight: bold; color: white;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
+
         #game-container {
             position: relative;
             width: 100vw;
-            /* Using -webkit-fill-available fixes some iOS height bugs */
             height: 100vh; 
+            visibility: hidden; /* Hidden until title sequence is done */
         }
 
         canvas { display: block; background: linear-gradient(to bottom, #1a1a1a, #000); }
 
-        /* Controls Layout Fix */
         .controls {
             position: absolute;
-            /* Move buttons up above the iOS home bar */
             bottom: calc(30px + env(safe-area-inset-bottom)); 
             width: 100%;
             display: flex;
@@ -61,23 +88,18 @@
         }
 
         .btn:active { background: var(--blood-red); transform: scale(0.9); }
-
-        #orientation-warning {
-            display: none; position: fixed; inset: 0;
-            background: var(--metal-black); color: white;
-            z-index: 100; text-align: center; padding-top: 20%;
-        }
-
-        @media (orientation: portrait) { #orientation-warning { display: block; } }
     </style>
 </head>
 <body>
 
-<div id="orientation-warning">PLEASE ROTATE TO LANDSCAPE TO SHRED</div>
+<div id="title-screen">
+    <img id="title-img" src="IMG_5180.png">
+    <div id="start-prompt">TAP TO ENTER THE VOID</div>
+    <div id="orientation-warning">PLEASE ROTATE TO LANDSCAPE TO SHRED</div>
+</div>
 
 <div id="game-container">
     <canvas id="gameCanvas"></canvas>
-    
     <div class="controls">
         <div class="btn-group">
             <div id="btn-left" class="btn">←</div>
@@ -94,16 +116,62 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
 
-    // Sprite Loading
+    // --- Title & Animation Logic ---
+    const titleScreen = document.getElementById('title-screen');
+    const titleImg = document.getElementById('title-img');
+    const startPrompt = document.getElementById('start-prompt');
+    const warning = document.getElementById('orientation-warning');
+    const gameContainer = document.getElementById('game-container');
+    
+    // Replace these with your actual filenames
+    const titleFrames = ['IMG_5180.png', 'IMG_5178.png', 'IMG_5179.png']; 
+    const music = new Audio('CHUGGED2DEATH-THEME.ogg');
+    let frameIndex = 0;
+    let animInterval = null;
+    let musicFinished = false;
+
+    function cycleTitle() {
+        frameIndex = (frameIndex + 1) % titleFrames.length;
+        titleImg.src = titleFrames[frameIndex];
+    }
+
+    titleScreen.addEventListener('touchstart', () => {
+        if (!animInterval) {
+            startPrompt.style.display = 'none';
+            music.play().catch(e => console.log("Audio play blocked"));
+            animInterval = setInterval(cycleTitle, 250); // Speed of blink/drip
+        }
+    }, { once: true });
+
+    music.onended = () => {
+        musicFinished = true;
+        checkState();
+    };
+
+    function checkState() {
+        const isLandscape = window.innerWidth > window.innerHeight;
+        
+        if (musicFinished) {
+            if (isLandscape) {
+                // Sequence complete & orientation correct: Enter Game
+                titleScreen.style.display = 'none';
+                gameContainer.style.visibility = 'visible';
+                clearInterval(animInterval);
+            } else {
+                // Music finished but wrong orientation
+                warning.style.display = 'block';
+            }
+        }
+    }
+
+    // --- Original Game Logic ---
     const sprites = { idle: new Image(), shoot1: new Image(), shoot2: new Image() };
     sprites.idle.src = 'IMG_5160.png';
     sprites.shoot1.src = 'IMG_5161.png';
     sprites.shoot2.src = 'IMG_5162.png';
 
-    // Game Config
     const GRAVITY = 0.6;
     const SHRED_SPEED = 10;
-    // This value moves the player UP. Higher = higher off the bottom.
     const FLOOR_OFFSET = 210; 
     
     let width, height;
@@ -126,8 +194,8 @@
         height = window.innerHeight;
         canvas.width = width;
         canvas.height = height;
-        // Keep player on the new higher floor
         player.y = height - FLOOR_OFFSET;
+        checkState(); // Trigger check on rotate
     }
 
     const setupBtn = (id, key) => {
@@ -145,7 +213,7 @@
         if (Math.random() < 0.02) {
             enemies.push({
                 x: width + 50,
-                y: height - FLOOR_OFFSET + 20, // Match enemy height to new floor
+                y: height - FLOOR_OFFSET + 20,
                 w: 40, h: 60, speed: 2 + Math.random() * 3
             });
         }
@@ -187,7 +255,6 @@
         player.y += player.vy;
         player.vy += GRAVITY;
 
-        // Floor collision logic updated with FLOOR_OFFSET
         if (player.y > height - FLOOR_OFFSET) {
             player.y = height - FLOOR_OFFSET;
             player.vy = 0;
@@ -225,7 +292,6 @@
     function draw() {
         ctx.clearRect(0, 0, width, height);
 
-        // Optional: Draw a "stage" or floor line to visualize the play area
         ctx.strokeStyle = "#333";
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -233,7 +299,6 @@
         ctx.lineTo(width, height - FLOOR_OFFSET + player.h);
         ctx.stroke();
 
-        // Draw Player
         ctx.save();
         ctx.translate(player.x + player.w / 2, player.y + player.h / 2);
         if (player.direction === -1) ctx.scale(-1, 1);
@@ -248,16 +313,13 @@
         }
         ctx.restore();
 
-        // Draw Notes
         ctx.fillStyle = "#00f0ff";
         ctx.font = "bold 24px Arial";
         notes.forEach(n => ctx.fillText(n.symbol, n.x, n.y));
 
-        // Draw Enemies
         ctx.fillStyle = "#444";
         enemies.forEach(en => ctx.fillRect(en.x, en.y, en.w, en.h));
 
-        // Particles
         ctx.fillStyle = "#ff0000";
         particles.forEach((p, i) => {
             ctx.fillRect(p.x, p.y, 4, 4);
@@ -267,8 +329,11 @@
     }
 
     function loop() {
-        update();
-        draw();
+        // Only update the game if the title screen is gone
+        if (titleScreen.style.display === 'none') {
+            update();
+            draw();
+        }
         requestAnimationFrame(loop);
     }
 
@@ -276,7 +341,6 @@
     resize();
     loop();
 
-    // Service Worker
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('sw.js').catch(err => console.log('SW failed', err));
