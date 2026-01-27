@@ -157,7 +157,7 @@
 
     titleScreen.addEventListener('touchstart', () => {
         if (!animInterval) {
-            startPrompt.style.display = 'none';
+            startPrompt.style.visibility = 'hidden';
             music.play().catch(e => console.log("Audio play blocked"));
             // Animation runs every 2.5 seconds to allow for the 1.5s fade
             animInterval = setInterval(cycleTitle, 600); 
