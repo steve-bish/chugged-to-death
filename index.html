@@ -27,16 +27,30 @@
         /* Title Screen Styles */
         #title-screen {
             position: fixed; inset: 0;
-            background: var(--metal-black);
+            background: #000;
             z-index: 1000;
             display: flex; flex-direction: column;
             align-items: center; justify-content: center;
             color: var(--blood-red);
         }
 
-        #title-img {
+        /* Container for Cross-fading Images */
+        #intro-container {
+            position: relative;
             width: 80%; max-width: 500px;
-            height: auto; display: block;
+            height: 300px; /* Adjust height based on your image aspect ratio */
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .intro-img {
+            position: absolute;
+            width: 100%; height: auto;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out; /* Smoothness of the fade */
+        }
+
+        .intro-img.active {
+            opacity: 1;
         }
 
         #start-prompt {
@@ -57,7 +71,7 @@
             position: relative;
             width: 100vw;
             height: 100vh; 
-            visibility: hidden; /* Hidden until title sequence is done */
+            visibility: hidden; 
         }
 
         canvas { display: block; background: linear-gradient(to bottom, #1a1a1a, #000); }
@@ -93,7 +107,11 @@
 <body>
 
 <div id="title-screen">
-    <img id="title-img" src="IMG_5180.jpg">
+    <div id="intro-container">
+        <img class="intro-img active" src="IMG_5180.jpg">
+        <img class="intro-img" src="IMG_5178.jpg">
+        <img class="intro-img" src="IMG_5179.jpg">
+    </div>
     <div id="start-prompt">TAP TO PLAY</div>
     <div id="orientation-warning">PLEASE ROTATE TO LANDSCAPE TO SHRED</div>
 </div>
@@ -118,33 +136,39 @@
 
     // --- Title & Animation Logic ---
     const titleScreen = document.getElementById('title-screen');
-    const titleImg = document.getElementById('title-img');
+    const introImages = document.querySelectorAll('.intro-img');
     const startPrompt = document.getElementById('start-prompt');
     const warning = document.getElementById('orientation-warning');
     const gameContainer = document.getElementById('game-container');
     
-    // Replace these with your actual filenames
-    const titleFrames = ['IMG_5180.jpg', 'IMG_5178.jpg', 'IMG_5179.jpg']; 
     const music = new Audio('CHUGGED2DEATH-THEME.ogg');
     let frameIndex = 0;
     let animInterval = null;
     let musicFinished = false;
 
     function cycleTitle() {
-        frameIndex = (frameIndex + 1) % titleFrames.length;
-        titleImg.src = titleFrames[frameIndex];
+        // Hide current image
+        introImages[frameIndex].classList.remove('active');
+        // Move to next
+        frameIndex = (frameIndex + 1) % introImages.length;
+        // Show next image
+        introImages[frameIndex].classList.add('active');
     }
 
     titleScreen.addEventListener('touchstart', () => {
         if (!animInterval) {
-            startPrompt.style.display = 'none';
+            startPrompt.style.visibility = 'hidden';
             music.play().catch(e => console.log("Audio play blocked"));
-            animInterval = setInterval(cycleTitle, 250); // Speed of blink/drip
+            // Animation runs every 2.5 seconds to allow for the 1.5s fade
+            animInterval = setInterval(cycleTitle, 600); 
         }
     }, { once: true });
 
     music.onended = () => {
         musicFinished = true;
+        // Stop animation when music ends
+        clearInterval(animInterval);
+        animInterval = null;
         checkState();
     };
 
@@ -153,12 +177,9 @@
         
         if (musicFinished) {
             if (isLandscape) {
-                // Sequence complete & orientation correct: Enter Game
                 titleScreen.style.display = 'none';
                 gameContainer.style.visibility = 'visible';
-                clearInterval(animInterval);
             } else {
-                // Music finished but wrong orientation
                 warning.style.display = 'block';
             }
         }
@@ -195,7 +216,7 @@
         canvas.width = width;
         canvas.height = height;
         player.y = height - FLOOR_OFFSET;
-        checkState(); // Trigger check on rotate
+        checkState(); 
     }
 
     const setupBtn = (id, key) => {
@@ -329,7 +350,6 @@
     }
 
     function loop() {
-        // Only update the game if the title screen is gone
         if (titleScreen.style.display === 'none') {
             update();
             draw();
